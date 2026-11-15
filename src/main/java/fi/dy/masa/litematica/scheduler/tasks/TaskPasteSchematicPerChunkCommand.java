@@ -517,8 +517,8 @@ public class TaskPasteSchematicPerChunkCommand extends TaskPasteSchematicPerChun
         {
             final BlockState fillState = state;
             FillVolumeSplitter.forEachBox(minX, minY, minZ, maxX, maxY, maxZ, this.maxBoxVolume,
-                    (x1, y1, z1, x2, y2, z2) ->
-                            this.queueFillCommandForBox(x1, y1, z1, x2, y2, z2, fillState));
+                    (partMinX, partMinY, partMinZ, partMaxX, partMaxY, partMaxZ) ->
+                            this.queueFillCommandForBox(partMinX, partMinY, partMinZ, partMaxX, partMaxY, partMaxZ, fillState));
         }
     }
 
