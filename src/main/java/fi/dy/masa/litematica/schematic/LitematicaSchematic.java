@@ -868,6 +868,14 @@ public class LitematicaSchematic
 			AABB bb = PositionUtils.createAABBFrom(entry.getValue());
 			List<Entity> entities = world.getEntities((Entity) null, bb, EntityUtils.NOT_PLAYER);
 			BlockPos regionPosAbs = box.getPos1();
+			BlockPos regionPos2 = box.getPos2();
+			AABB selectionBounds = regionPos2 == null ? bb : new AABB(
+					Math.min(regionPosAbs.getX(), regionPos2.getX()),
+					Math.min(regionPosAbs.getY(), regionPos2.getY()),
+					Math.min(regionPosAbs.getZ(), regionPos2.getZ()),
+					Math.max(regionPosAbs.getX(), regionPos2.getX()) + 1,
+					Math.max(regionPosAbs.getY(), regionPos2.getY()) + 1,
+					Math.max(regionPosAbs.getZ(), regionPos2.getZ()) + 1);
 
 			for (Entity entity : entities)
 			{
@@ -875,6 +883,14 @@ public class LitematicaSchematic
 				{
 					continue;
 				}
+
+				// Vehicle NBT embeds its passenger subtree. Check the entire selected
+				// region (not only this chunk) to avoid duplicates across chunk order.
+				if (entity.getVehicle() != null && hasSelectedVehicle(entity, selectionBounds))
+				{
+					continue;
+				}
+
 				UUID uuid = entity.getUUID();
                 /*
                 if (entity.posX >= bb.minX && entity.posX < bb.maxX &&
@@ -898,8 +914,12 @@ public class LitematicaSchematic
 					{
 						NbtView view = NbtView.getWriter(world.registryAccess());
 
-						// Checks for Vehicle
-						if (entity.save(view.getWriter()))
+						// save() skips riding entities. If their vehicle is outside the
+						// selected region, serialize the passenger as a schematic root.
+						boolean saved = entity.getVehicle() != null
+								? entity.saveAsPassenger(view.getWriter())
+								: entity.save(view.getWriter());
+						if (saved)
 						{
 							tag = view.readNbt() != null ? view.readData() : new CompoundData();
 							Identifier id = EntityType.getKey(entity.getType());
@@ -980,6 +1000,25 @@ public class LitematicaSchematic
 				}
 			}
 		}
+	}
+
+	/**
+	 * Whether an ancestor vehicle is part of this selected schematic region.
+	 * Its serialized NBT already includes the passenger subtree.
+	 */
+	private static boolean hasSelectedVehicle(Entity passenger, AABB selectionBounds)
+	{
+		for (Entity vehicle = passenger.getVehicle(); vehicle != null; vehicle = vehicle.getVehicle())
+		{
+			if (!(vehicle instanceof EnderDragonPart) &&
+				EntityUtils.NOT_PLAYER.test(vehicle) &&
+				selectionBounds.intersects(vehicle.getBoundingBox()))
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
