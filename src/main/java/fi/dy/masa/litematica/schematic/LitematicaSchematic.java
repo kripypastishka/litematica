@@ -765,6 +765,7 @@ public class LitematicaSchematic
 	 */
 	private void takeEntitiesFromWorld(Level world, List<Box> boxes, BlockPos origin)
 	{
+		List<AABB> selectedBounds = getSelectionBounds(boxes);
 		for (Box box : boxes)
 		{
 			AABB bb = PositionUtils.createEnclosingAABB(box.getPos1(), box.getPos2());
@@ -775,6 +776,11 @@ public class LitematicaSchematic
 			for (Entity entity : entities)
 			{
 				if (entity instanceof EnderDragonPart)
+				{
+					continue;
+				}
+				// saveWithoutId() already embeds all passengers in the selected vehicle.
+				if (entity.getVehicle() != null && hasSelectedVehicle(entity, selectedBounds))
 				{
 					continue;
 				}
@@ -854,6 +860,7 @@ public class LitematicaSchematic
 	                                             ImmutableMap<String, IntBoundingBox> volumes, ImmutableMap<String, Box> boxes,
 	                                             Set<UUID> existingEntities, BlockPos origin)
 	{
+		List<AABB> selectedBounds = null;
 		for (Map.Entry<String, IntBoundingBox> entry : volumes.entrySet())
 		{
 			String regionName = entry.getKey();
@@ -875,6 +882,21 @@ public class LitematicaSchematic
 				{
 					continue;
 				}
+
+				// Vehicle NBT embeds its passenger subtree. Include every selected region
+				// to avoid duplication across chunks and overlapping sub-regions.
+				if (entity.getVehicle() != null)
+				{
+					if (selectedBounds == null)
+					{
+						selectedBounds = getSelectionBounds(boxes.values());
+					}
+					if (hasSelectedVehicle(entity, selectedBounds))
+					{
+						continue;
+					}
+				}
+
 				UUID uuid = entity.getUUID();
                 /*
                 if (entity.posX >= bb.minX && entity.posX < bb.maxX &&
@@ -898,8 +920,12 @@ public class LitematicaSchematic
 					{
 						NbtView view = NbtView.getWriter(world.registryAccess());
 
-						// Checks for Vehicle
-						if (entity.save(view.getWriter()))
+						// save() skips riding entities. If their vehicle is outside the
+						// selected region, serialize the passenger as a schematic root.
+						boolean saved = entity.getVehicle() != null
+								? entity.saveAsPassenger(view.getWriter())
+								: entity.save(view.getWriter());
+						if (saved)
 						{
 							tag = view.readNbt() != null ? view.readData() : new CompoundData();
 							Identifier id = EntityType.getKey(entity.getType());
@@ -980,6 +1006,53 @@ public class LitematicaSchematic
 				}
 			}
 		}
+	}
+
+	/**
+	 * Bounding boxes for all valid sub-regions. Full regions are used rather than
+	 * per-chunk intersections to make the result independent of save order.
+	 */
+	private static List<AABB> getSelectionBounds(Collection<Box> boxes)
+	{
+		List<AABB> result = new ArrayList<>(boxes.size());
+
+		for (Box box : boxes)
+		{
+			BlockPos p1 = box.getPos1();
+			BlockPos p2 = box.getPos2();
+
+			if (p1 != null && p2 != null)
+			{
+				result.add(new AABB(
+						Math.min(p1.getX(), p2.getX()), Math.min(p1.getY(), p2.getY()), Math.min(p1.getZ(), p2.getZ()),
+						Math.max(p1.getX(), p2.getX()) + 1, Math.max(p1.getY(), p2.getY()) + 1, Math.max(p1.getZ(), p2.getZ()) + 1));
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * An ancestor vehicle's saved NBT already contains its passenger subtree.
+	 * Exclude players and non-persistable dragon parts as possible roots.
+	 */
+	private static boolean hasSelectedVehicle(Entity passenger, List<AABB> selectedBounds)
+	{
+		for (Entity vehicle = passenger.getVehicle(); vehicle != null; vehicle = vehicle.getVehicle())
+		{
+			if (!(vehicle instanceof EnderDragonPart) && EntityUtils.NOT_PLAYER.test(vehicle))
+			{
+				for (AABB bounds : selectedBounds)
+				{
+					if (bounds.intersects(vehicle.getBoundingBox()))
+					{
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
