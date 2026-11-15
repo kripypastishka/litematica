@@ -181,7 +181,7 @@ public class MaterialListUtils
     {
         List<MaterialListEntry> list = new ArrayList<>();
 
-        if (!countsTotal.isEmpty())
+        if (!countsTotal.isEmpty() || !entitiesTotal.isEmpty())
         {
             MaterialCache cache = MaterialCache.getInstance();
             Object2IntOpenHashMap<ItemType> itemTypesTotal = new Object2IntOpenHashMap<>();
@@ -248,12 +248,27 @@ public class MaterialListUtils
         for (MaterialListEntityInfo entry : entitiesIn.keySet())
         {
             int count = entitiesIn.getInt(entry);
+            EntityType<?> type = DataEntityUtils.getEntityType(entry.data());
+
+            // Always include the frame itself, even if its displayed item is excluded.
+            if (!Configs.Generic.MATERIAL_LIST_COUNT_ITEM_FRAME_CONTENTS.getBooleanValue())
+            {
+                if (EntityTypes.ITEM_FRAME.equals(type))
+                {
+                    itemTypesOut.addTo(new ItemType(new ItemStack(Items.ITEM_FRAME), true, false), count);
+                    continue;
+                }
+                else if (EntityTypes.GLOW_ITEM_FRAME.equals(type))
+                {
+                    itemTypesOut.addTo(new ItemType(new ItemStack(Items.GLOW_ITEM_FRAME), true, false), count);
+                    continue;
+                }
+            }
+
             ItemStack pickStack = cache.getRequiredBuildItemForEntity(entry);
 
             if (pickStack != null && !pickStack.isEmpty())
             {
-                EntityType<?> type = DataEntityUtils.getEntityType(entry.data());
-
                 addEntityTypeOverrides(type, itemTypesOut, pickStack, count);
 
                 itemTypesOut.addTo(new ItemType(pickStack, true, false), count * pickStack.getCount());
