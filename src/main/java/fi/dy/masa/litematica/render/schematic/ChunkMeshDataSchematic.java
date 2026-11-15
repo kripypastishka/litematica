@@ -110,6 +110,10 @@ public class ChunkMeshDataSchematic implements AutoCloseable
 	private final Map<OverlayRenderType, MeshData.SortState> overlaySortingData;
 	private final List<BlockEntity> blockEntities;
 	private final List<BlockEntity> noCullBlockEntities;
+	// Each snapshot is guarded by the corresponding mutable list.
+	// Reuse snapshots until an update, avoiding a copy on every rendered frame.
+	private List<BlockEntity> blockEntitiesSnapshot;
+	private List<BlockEntity> noCullBlockEntitiesSnapshot;
 	private VisibilitySet visibility;
 //    private TranslucencyPointOfView translucentPov;
 	private long timeBuilt;
@@ -192,24 +196,48 @@ public class ChunkMeshDataSchematic implements AutoCloseable
 
 	public List<BlockEntity> getBlockEntities()
 	{
-		return this.blockEntities;
+		synchronized (this.blockEntities)
+		{
+			if (this.blockEntitiesSnapshot == null)
+			{
+				this.blockEntitiesSnapshot = List.copyOf(this.blockEntities);
+			}
+
+			return this.blockEntitiesSnapshot;
+		}
 	}
 
 	public List<BlockEntity> getNoCullBlockEntities()
 	{
-		return this.noCullBlockEntities;
+		synchronized (this.noCullBlockEntities)
+		{
+			if (this.noCullBlockEntitiesSnapshot == null)
+			{
+				this.noCullBlockEntitiesSnapshot = List.copyOf(this.noCullBlockEntities);
+			}
+
+			return this.noCullBlockEntitiesSnapshot;
+		}
 	}
 
 	protected void addBlockEntity(BlockEntity be)
 	{
 //		LOGGER.warn("[Mesh] addBlockEntity(): type: [{}], pos: [{}], level: [{}]", BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(be.getType()).toString(), be.getBlockPos(), be.getLevel().dimension().identifier().toString());
-		this.blockEntities.add(be);
+		synchronized (this.blockEntities)
+		{
+			this.blockEntities.add(be);
+			this.blockEntitiesSnapshot = null;
+		}
 	}
 
 	protected void addNoCullBlockEntity(BlockEntity be)
 	{
 //		LOGGER.warn("[Mesh] addNoCullBlockEntity(): type: [{}], pos: [{}], level: [{}]", BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(be.getType()).toString(), be.getBlockPos(), be.getLevel().dimension().identifier().toString());
-		this.noCullBlockEntities.add(be);
+		synchronized (this.noCullBlockEntities)
+		{
+			this.noCullBlockEntities.add(be);
+			this.noCullBlockEntitiesSnapshot = null;
+		}
 	}
 
 	public boolean hasTransparentSortingDataForBlockLayer(ChunkSectionLayer layer)
@@ -361,8 +389,17 @@ public class ChunkMeshDataSchematic implements AutoCloseable
 
 	protected void clearTileCache()
 	{
-		this.blockEntities.clear();
-		this.noCullBlockEntities.clear();
+		synchronized (this.blockEntities)
+		{
+			this.blockEntities.clear();
+			this.blockEntitiesSnapshot = null;
+		}
+
+		synchronized (this.noCullBlockEntities)
+		{
+			this.noCullBlockEntities.clear();
+			this.noCullBlockEntitiesSnapshot = null;
+		}
 	}
 
 	protected void clearAll()
@@ -379,8 +416,7 @@ public class ChunkMeshDataSchematic implements AutoCloseable
 		this.overlayVboUploaded.clear();
 		this.overlayIboUploaded.clear();
 
-		this.blockEntities.clear();
-		this.noCullBlockEntities.clear();
+		this.clearTileCache();
 		this.timeBuilt = 0L;
 	}
 
