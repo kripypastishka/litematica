@@ -50,6 +50,7 @@ import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.mixin.block.IMixinAbstractBlock;
 import fi.dy.masa.litematica.render.infohud.InfoHud;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
+import fi.dy.masa.litematica.util.FillVolumeSplitter;
 import fi.dy.masa.litematica.util.EntityUtils;
 import fi.dy.masa.litematica.util.PasteNbtBehavior;
 import fi.dy.masa.litematica.util.ReplaceBehavior;
@@ -503,33 +504,21 @@ public class TaskPasteSchematicPerChunkCommand extends TaskPasteSchematicPerChun
         final int maxX = Math.max(x1, x2);
         final int maxY = Math.max(y1, y2);
         final int maxZ = Math.max(z1, z2);
-        final int singleLayerVolume = (maxX - minX + 1) * (maxZ - minZ + 1);
-        final int totalVolume = singleLayerVolume * (maxY - minY + 1);
-
         if (state.is(BlockTags.LEAVES) && Configs.Generic.PASTE_ALWAYS_USE_PERSISTENT.getBooleanValue() && state.getValue(LeavesBlock.PERSISTENT) == false)
         {
             state = state.setValue(LeavesBlock.PERSISTENT, true);
         }
 
-        if (totalVolume <= this.maxBoxVolume || this.useWorldEdit)
+        if (this.useWorldEdit)
         {
             this.queueFillCommandForBox(minX, minY, minZ, maxX, maxY, maxZ, state);
         }
         else
         {
-            int singleBoxHeight = this.maxBoxVolume / singleLayerVolume;
-
-            if (singleBoxHeight < 1)
-            {
-                InfoUtils.showGuiOrInGameMessage(MessageType.ERROR, "Error: Calculated single box height was less than 1 block");
-                return;
-            }
-
-            for (int y = minY; y <= maxY; y += singleBoxHeight)
-            {
-                int boxMaxY = Math.min(y + singleBoxHeight - 1, maxY);
-                this.queueFillCommandForBox(minX, y, minZ, maxX, boxMaxY, maxZ, state);
-            }
+            final BlockState fillState = state;
+            FillVolumeSplitter.forEachBox(minX, minY, minZ, maxX, maxY, maxZ, this.maxBoxVolume,
+                    (x1, y1, z1, x2, y2, z2) ->
+                            this.queueFillCommandForBox(x1, y1, z1, x2, y2, z2, fillState));
         }
     }
 
