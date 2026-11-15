@@ -45,7 +45,7 @@ jobs:
       - name: test fill volume splitting
         run: |
           mkdir -p build/fill-volume-test
-          javac -d build/fill-volume-test src/main/java/fi/dy/masa/litematica/util/FillVolumeSplitter.java src/test/java/fi/dy/masa/litematica/util/FillVolumeSplitterTest.java
+          javac -d build/fill-volume-test src/main/java/fi/dy/masa/litematica/util/FillVolumeSplitter.java tools/tests/fi/dy/masa/litematica/util/FillVolumeSplitterTest.java
           java -cp build/fill-volume-test fi.dy.masa.litematica.util.FillVolumeSplitterTest
 
       - name: capture build artifacts
