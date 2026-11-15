@@ -664,6 +664,7 @@
     "litematica.error.schematic_save.schematic_creation_failed": "Не удалось создать схему!",
     "litematica.error.schematic_write_to_file_failed.directory_creation_failed": "Не удалось создать папку '%s'",
     "litematica.error.schematic_write_to_file_failed.exception": "Не удалось записать схему в файл '%s' (исключение)",
+    "litematica.error.schematic_write_to_file_failed.nbt_write_failed": "Не удалось записать данные схемы в файл «%s». Проверьте права доступа и журнал.",
     "litematica.error.schematic_write_to_file_failed.exists": "Не удалось записать схему в файл '%s', файл с таким названием уже существует",
     "litematica.error.structure_write_to_file_failed.exception": "Не удалось записать структуру в файл '%s' (исключение)",
     "litematica.error.structure_write_to_file_failed.exists": "Не удалось записать структуру в файл '%s', файл с таким названием уже существует",
