@@ -664,6 +664,7 @@
     "litematica.error.schematic_save.schematic_creation_failed": "Failed to create the schematic!",
     "litematica.error.schematic_write_to_file_failed.directory_creation_failed": "Failed to create schematic directory '%s'",
     "litematica.error.schematic_write_to_file_failed.exception": "Failed to write the schematic to file '%s' (exception)",
+    "litematica.error.schematic_write_to_file_failed.nbt_write_failed": "Failed to write schematic data to file '%s'. Check disk permissions and logs.",
     "litematica.error.schematic_write_to_file_failed.exists": "Failed to write the schematic to file '%s', file already exists",
     "litematica.error.structure_write_to_file_failed.exception": "Failed to write the structure to file '%s' (exception)",
     "litematica.error.structure_write_to_file_failed.exists": "Failed to write the structure to file '%s', file already exists",
