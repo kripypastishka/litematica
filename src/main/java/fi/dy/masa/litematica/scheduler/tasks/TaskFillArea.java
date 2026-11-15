@@ -22,6 +22,7 @@ import fi.dy.masa.litematica.config.Configs;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.render.infohud.InfoHud;
 import fi.dy.masa.litematica.selection.Box;
+import fi.dy.masa.litematica.util.FillVolumeSplitter;
 import fi.dy.masa.litematica.util.EntityUtils;
 import fi.dy.masa.litematica.util.WorldUtils;
 
@@ -208,28 +209,15 @@ public class TaskFillArea extends TaskProcessChunkMultiPhase
             }
         }
 
-        int totalVolume = (box.maxX() - box.minX() + 1) * (box.maxY() - box.minY() + 1) * (box.maxZ() - box.minZ() + 1);
-
-        if (totalVolume <= this.maxBoxVolume || this.useWorldEdit)
+        if (this.useWorldEdit)
         {
             this.queueFillCommandForBox(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ());
         }
         else
         {
-            int singleLayerVolume = (box.maxX() - box.minX() + 1) * (box.maxZ() - box.minZ() + 1);
-            int singleBoxHeight = this.maxBoxVolume / singleLayerVolume;
-
-            if (singleBoxHeight < 1)
-            {
-                InfoUtils.showGuiOrInGameMessage(MessageType.ERROR, "Error: Calculated single box height was less than 1 block");
-                return;
-            }
-
-            for (int y = box.minY(); y <= box.maxY(); y += singleBoxHeight)
-            {
-                int maxY = Math.min(y + singleBoxHeight - 1, box.maxY());
-                this.queueFillCommandForBox(box.minX(), y, box.minZ(), box.maxX(), maxY, box.maxZ());
-            }
+            FillVolumeSplitter.forEachBox(box.minX(), box.minY(), box.minZ(),
+                    box.maxX(), box.maxY(), box.maxZ(), this.maxBoxVolume,
+                    this::queueFillCommandForBox);
         }
     }
 
