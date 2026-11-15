@@ -95,13 +95,13 @@ public final class FillVolumeSplitterTest
             }
             actualVolume += fragment;
 
-            for (int x = b[0]; x <= b[3]; x++)
+            for (long x = b[0]; x <= b[3]; x++)
             {
-                for (int y = b[1]; y <= b[4]; y++)
+                for (long y = b[1]; y <= b[4]; y++)
                 {
-                    for (int z = b[2]; z <= b[5]; z++)
+                    for (long z = b[2]; z <= b[5]; z++)
                     {
-                        long index = ((long) (x - minX) * height + (y - (long) minY)) * depth + (z - (long) minZ);
+                        long index = ((x - minX) * height + (y - minY)) * depth + (z - minZ);
                         if (!visited.add(index))
                         {
                             throw new AssertionError("Duplicate block at " + x + " " + y + " " + z);
