@@ -44,6 +44,7 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
 {
     private final MaterialListBase materialList;
     private ExportType exportType = ExportType.WRITE_TO_FILE;
+    private ExportFormat exportFormat = ExportFormat.TXT;
     private boolean isNarrow;
 
     public GuiMaterialList(MaterialListBase materialList)
@@ -130,8 +131,15 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
 
         x += this.createButton(x, y, ButtonListener.Type.CLEAR_IGNORED) + gap;
         x += this.createButton(x, y, ButtonListener.Type.CLEAR_CACHE) + gap;
-        x += this.createButton(x, y, ButtonListener.Type.EXPORT) + gap;
+
+        // Format is configurable for the standard list. Raw and custom exports are JSON only.
+        if (this.exportType == ExportType.WRITE_TO_FILE)
+        {
+            x += this.createButton(x, y, ButtonListener.Type.EXPORT_FORMAT) + gap;
+        }
+
         x += this.createButton(x, y, ButtonListener.Type.EXPORT_TYPE) + gap;
+        x += this.createButton(x, y, ButtonListener.Type.EXPORT) + gap;
         y += 22;
 
         y = this.getScreenHeight() - 36;
@@ -188,14 +196,16 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
         ButtonGeneric button;
         int buttonWidth;
 
-        if (type == ButtonListener.Type.EXPORT_TYPE)
+        if (type == ButtonListener.Type.EXPORT_TYPE || type == ButtonListener.Type.EXPORT_FORMAT)
         {
-            buttonWidth = this.getStringWidth(this.exportType.getDisplayName()) + 10;
-            button = new ConfigButtonOptionList(x, y, buttonWidth, 20, new ExportTypeWrapper());
+            IConfigOptionListEntry option = type == ButtonListener.Type.EXPORT_TYPE ? this.exportType : this.exportFormat;
+            IConfigOptionList wrapper = type == ButtonListener.Type.EXPORT_TYPE ? new ExportTypeWrapper() : new ExportFormatWrapper();
+            buttonWidth = this.getStringWidth(option.getDisplayName()) + 10;
+            button = new ConfigButtonOptionList(x, y, buttonWidth, 20, wrapper);
 
-            if (this.exportType.getHoverText() != null)
+            if (option.getHoverText() != null)
             {
-                button.setHoverStrings(this.exportType.getHoverText());
+                button.setHoverStrings(option.getHoverText());
             }
         }
         else
@@ -235,6 +245,10 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
         width += this.getStringWidth(ButtonListener.Type.CLEAR_CACHE.getDisplayName());
         width += this.getStringWidth(ButtonListener.Type.EXPORT.getDisplayName());
         width += this.getStringWidth(this.exportType.getDisplayName());
+        if (this.exportType == ExportType.WRITE_TO_FILE)
+        {
+            width += this.getStringWidth(this.exportFormat.getDisplayName()) + 10;
+        }
         width += (new ButtonOnOff(0, 0, -1, false, ButtonListener.Type.HIDE_AVAILABLE.getTranslationKey(), false)).getWidth();
         width += (new ButtonOnOff(0, 0, -1, false, ButtonListener.Type.TOGGLE_INFO_HUD.getTranslationKey(), false)).getWidth();
         width += this.getStringWidth(StringUtils.translate("litematica.gui.label.material_list.multiplier"));
@@ -295,6 +309,29 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
         }
     }
 
+    private class ExportFormatWrapper implements IConfigOptionList
+    {
+        @Override
+        public IConfigOptionListEntry getOptionListValue()
+        {
+            return GuiMaterialList.this.exportFormat;
+        }
+
+        @Override
+        public IConfigOptionListEntry getDefaultOptionListValue()
+        {
+            return ExportFormat.TXT;
+        }
+
+        @Override
+        public void setOptionListValue(IConfigOptionListEntry value)
+        {
+            GuiMaterialList.this.exportFormat = (GuiMaterialList.ExportFormat) value;
+            GuiMaterialList.this.clearButtons();
+            GuiMaterialList.this.createButtons();
+        }
+    }
+
     private record ButtonListener(Type type, GuiMaterialList parent) implements IButtonActionListener
     {
         @Override
@@ -348,8 +385,8 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
                     if (this.parent.exportType == ExportType.WRITE_TO_FILE)
                     {
                         Path dir = FileUtils.getConfigDirectory().resolve(Reference.MOD_ID);
-                        boolean csv = GuiBase.isShiftDown();
-                        boolean json = GuiBase.isAltDown();
+                        boolean csv = this.parent.exportFormat == ExportFormat.CSV;
+                        boolean json = this.parent.exportFormat == ExportFormat.JSON;
                         Path file;
 
                         if (json)
@@ -383,12 +420,13 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
 
                         break;
                     }
-                    else if (this.parent.exportType == ExportType.WRITE_TO_JSON)
+                    else if (this.parent.exportType == ExportType.WRITE_TO_JSON ||
+                             this.parent.exportType == ExportType.WRITE_TO_JSON_STONECUTTER)
                     {
                         Minecraft mc = Minecraft.getInstance();
                         Path jsonDir = FileUtils.getConfigDirectory().resolve(Reference.MOD_ID);
                         boolean missingOnly = GuiBase.isShiftDown();
-                        boolean craftingOnly = GuiBase.isAltDown();
+                        boolean craftingOnly = this.parent.exportType == ExportType.WRITE_TO_JSON;
                         final String dateExt = "_" + TimeFormat.REGULAR.formatNow();
                         String fileName = "raw_material_list_recipe_details" + (missingOnly ? "_missing_only" : "") + dateExt;
                         MaterialListJson jsonWriter = new MaterialListJson();
@@ -533,6 +571,7 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
             CLEAR_CACHE         ("litematica.gui.button.material_list.clear_cache", "litematica.gui.button.hover.material_list.clear_cache"),
             EXPORT              ("litematica.gui.button.material_list.export",      "litematica.gui.button.hover.material_list.export_as"),
             EXPORT_TYPE         (""),
+            EXPORT_FORMAT       (""),
             ;
 
             private final String translationKey;
@@ -595,11 +634,59 @@ public class GuiMaterialList extends GuiListBase<MaterialListEntry, WidgetMateri
         }
     }
 
+    public enum ExportFormat implements IConfigOptionListEntry
+    {
+        TXT,
+        CSV,
+        JSON;
+
+        @Override
+        public String getStringValue()
+        {
+            return this.name().toLowerCase();
+        }
+
+        @Override
+        public String getDisplayName()
+        {
+            return this.name();
+        }
+
+        @Override
+        public List<String> getHoverText()
+        {
+            return List.of(StringUtils.translate("litematica.gui.button.hover.material_list.format_selector"));
+        }
+
+        @Override
+        public IConfigOptionListEntry cycle(boolean forward)
+        {
+            int id = this.ordinal() + (forward ? 1 : -1);
+            ExportFormat[] values = values();
+            return values[(id + values.length) % values.length];
+        }
+
+        @Override
+        public ExportFormat fromString(String name)
+        {
+            for (ExportFormat format : values())
+            {
+                if (format.name().equalsIgnoreCase(name))
+                {
+                    return format;
+                }
+            }
+
+            return TXT;
+        }
+    }
+
     public enum ExportType implements IConfigOptionListEntry
     {
-        WRITE_TO_FILE       ("litematica.gui.button.material_list.write_to_file",       "litematica.gui.button.hover.material_list.write_hold_shift_for_csv"),
-        WRITE_TO_JSON       ("litematica.gui.button.material_list.write_to_json",       "litematica.gui.button.hover.material_list.json_hold_shift_for_missing_only"),
-        CUSTOM_JSON         ("litematica.gui.button.material_list.export_custom_json",  "litematica.gui.button.hover.material_list.export_custom_json"),
+        WRITE_TO_FILE            ("litematica.gui.button.material_list.export_list_materials",    "litematica.gui.button.hover.material_list.list_materials"),
+        WRITE_TO_JSON            ("litematica.gui.button.material_list.write_to_json",            "litematica.gui.button.hover.material_list.raw_materials"),
+        WRITE_TO_JSON_STONECUTTER("litematica.gui.button.material_list.export_raw_stonecutter",   "litematica.gui.button.hover.material_list.raw_materials_stonecutter"),
+        CUSTOM_JSON              ("litematica.gui.button.material_list.export_custom_json",      "litematica.gui.button.hover.material_list.export_custom_json"),
         ;
 
         private final String label;
