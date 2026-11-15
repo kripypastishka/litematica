@@ -2925,18 +2925,26 @@ public class LitematicaSchematic
 				return false;
 			}
 
+			boolean written;
+
 			if (downgrade)
 			{
-//                NbtUtils.writeCompoundTagToCompressedFile(this.writeToNBT_v6(), fileSchematic);
-				DataFileUtils.writeCompoundDataToCompressedNbtFile(fileSchematic, this.writeToData_v6());
+				written = DataFileUtils.writeCompoundDataToCompressedNbtFile(fileSchematic, this.writeToData_v6());
 			}
 			else
 			{
-//                NbtUtils.writeCompoundTagToCompressedFile(this.writeToNBT(), fileSchematic);
-				DataFileUtils.writeCompoundDataToCompressedNbtFile(fileSchematic, this.writeToData());
+				written = DataFileUtils.writeCompoundDataToCompressedNbtFile(fileSchematic, this.writeToData());
 			}
 
-			return true;
+			// MaLiLib catches write failures internally and returns false.
+			// Preserve the unsaved state in callers instead of claiming success.
+			if (!written)
+			{
+				InfoUtils.showGuiOrInGameMessage(MessageType.ERROR,
+						"litematica.error.schematic_write_to_file_failed.nbt_write_failed", fileSchematic.toAbsolutePath());
+			}
+
+			return written;
 		}
 		catch (Throwable e)
 		{
