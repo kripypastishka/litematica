@@ -41,6 +41,13 @@ jobs:
       - name: build
         run: ./gradlew build
 
+      # Dependency-free regression harness for large command-based fill volumes.
+      - name: test fill volume splitting
+        run: |
+          mkdir -p build/fill-volume-test
+          javac -d build/fill-volume-test src/main/java/fi/dy/masa/litematica/util/FillVolumeSplitter.java src/test/java/fi/dy/masa/litematica/util/FillVolumeSplitterTest.java
+          java -cp build/fill-volume-test fi.dy.masa.litematica.util.FillVolumeSplitterTest
+
       - name: capture build artifacts
         if: ${{ runner.os == 'Linux' }}
         uses: actions/upload-artifact@v7
